@@ -6,7 +6,7 @@
 
 \verbatim
 Async - A library for programming event driven applications
-Copyright (C) 2003-2017 Tobias Blomberg / SM0SVX
+Copyright (C) 2003-2022 Tobias Blomberg / SM0SVX
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -127,20 +127,46 @@ FramedTcpConnection::FramedTcpConnection(
   : TcpConnection(sock, remote_addr, remote_port, recv_buf_len),
     m_max_frame_size(DEFAULT_MAX_FRAME_SIZE), m_size_received(false)
 {
+  TcpConnection::sendBufferFull.connect(
+      sigc::mem_fun(*this, &FramedTcpConnection::onSendBufferFull));
 } /* FramedTcpConnection::FramedTcpConnection */
 
 
 FramedTcpConnection::~FramedTcpConnection(void)
 {
+  for (auto& item : m_txq)
+  {
+    delete item;
+  }
+  m_txq.clear();
 } /* FramedTcpConnection::~FramedTcpConnection */
 
 
-void FramedTcpConnection::disconnect(void)
+TcpConnection& FramedTcpConnection::operator=(TcpConnection&& other_base)
 {
-  //cout << "### FramedTcpConnection::disconnect\n";
-  disconnectCleanup();
-  TcpConnection::disconnect();
-} /* FramedTcpConnection::disconnect */
+  //std::cout << "### FramedTcpConnection::operator=(TcpConnection&&)"
+  //          << std::endl;
+
+  this->TcpConnection::operator=(std::move(other_base));
+  auto& other = dynamic_cast<FramedTcpConnection&>(other_base);
+
+  m_max_frame_size = other.m_max_frame_size;
+  other.m_max_frame_size = DEFAULT_MAX_FRAME_SIZE;
+
+  m_size_received = other.m_size_received;
+  other.m_size_received = false;
+
+  m_frame_size = other.m_frame_size;
+  other.m_frame_size = 0;
+
+  m_frame.swap(other.m_frame);
+  other.m_frame.clear();
+
+  m_txq.swap(other.m_txq);
+  other.m_txq.clear();
+
+  return *this;
+} /* FramedTcpConnection::operator=(TcpConnection&&) */
 
 
 int FramedTcpConnection::write(const void *buf, int count)
@@ -195,12 +221,17 @@ int FramedTcpConnection::write(const void *buf, int count)
  *
  ****************************************************************************/
 
+void FramedTcpConnection::closeConnection(void)
+{
+  disconnectCleanup();
+  TcpConnection::closeConnection();
+} /* FramedTcpConnection::closeConnection */
+
+
 void FramedTcpConnection::onDisconnected(DisconnectReason reason)
 {
-  //cout << "### FramedTcpConnection::onDisconnected: "
-  //     << TcpConnection::disconnectReasonStr(reason) << "\n";
   disconnectCleanup();
-  disconnected(this, reason);
+  TcpConnection::onDisconnected(reason);
 } /* FramedTcpConnection::onDisconnected */
 
 
@@ -223,8 +254,8 @@ int FramedTcpConnection::onDataReceived(void *buf, int count)
       m_frame_size |= static_cast<uint32_t>(*ptr++);
       if (m_frame_size > m_max_frame_size)
       {
-        disconnect();
-        disconnected(this, DR_PROTOCOL_ERROR);
+        closeConnection();
+        onDisconnected(DR_PROTOCOL_ERROR);
         return orig_count - count;
       }
       m_frame.clear();

@@ -4,7 +4,10 @@ set(EXPINC AsyncApplication.h AsyncFdWatch.h AsyncTimer.h AsyncIpAddress.h
            AsyncTcpClient.h AsyncDnsLookup.h AsyncUdpSocket.h AsyncTcpServer.h
            AsyncTcpConnection.h AsyncConfig.h AsyncSerial.h AsyncFileReader.h
            AsyncAtTimer.h AsyncExec.h AsyncPty.h AsyncPtyStreamBuf.h AsyncMsg.h
-           AsyncFramedTcpConnection.h AsyncTcpClientBase.h AsyncTcpServerBase.h)
+           AsyncFramedTcpConnection.h AsyncTcpClientBase.h AsyncTcpServerBase.h
+           AsyncHttpServerConnection.h AsyncFactory.h AsyncDnsResourceRecord.h
+           AsyncTcpPrioClientBase.h AsyncTcpPrioClient.h AsyncStateMachine.h
+           AsyncPlugin.h)
 
 set(LIBSRC AsyncApplication.cpp AsyncFdWatch.cpp AsyncTimer.cpp
            AsyncIpAddress.cpp AsyncDnsLookup.cpp AsyncTcpClientBase.cpp
@@ -12,7 +15,8 @@ set(LIBSRC AsyncApplication.cpp AsyncFdWatch.cpp AsyncTimer.cpp
            AsyncTcpConnection.cpp AsyncConfig.cpp AsyncSerial.cpp
            AsyncSerialDevice.cpp AsyncFileReader.cpp
            AsyncAtTimer.cpp AsyncExec.cpp AsyncPty.cpp AsyncPtyStreamBuf.cpp
-           AsyncFramedTcpConnection.cpp)
+           AsyncFramedTcpConnection.cpp AsyncHttpServerConnection.cpp
+           AsyncTcpPrioClientBase.cpp AsyncPlugin.cpp)
 
 # Copy exported include files to the global include directory
 foreach(incfile ${EXPINC})
@@ -26,6 +30,13 @@ set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
 # Set up additional defines
 # FIXME: Do we need this?
 add_definitions(-D_REENTRANT)
+
+# Find the dl library - only for Linux, not required for FreeBSD
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  find_package(DL REQUIRED)
+  set(LIBS ${LIBS} ${DL_LIBRARIES})
+  include_directories(${DL_INCLUDES})
+endif()
 
 # Build a shared library and a static library if configured
 add_library(${LIBNAME} SHARED ${LIBSRC})

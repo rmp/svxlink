@@ -6,7 +6,7 @@
 
 \verbatim
 EchoLib - A library for EchoLink communication
-Copyright (C) 2003-2013 Tobias Blomberg / SM0SVX
+Copyright (C) 2003-2022 Tobias Blomberg / SM0SVX
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -128,7 +128,7 @@ DirectoryCon::DirectoryCon(const vector<string> &servers,
   else
   {
     client = new TcpClient<>;
-    client->bind(bind_ip);
+    client->setBindIp(bind_ip);
     client->connected.connect(connected.make_slot());
     client->disconnected.connect(mem_fun(*this, &DirectoryCon::onDisconnected));
     client->dataReceived.connect(mem_fun(*this, &DirectoryCon::onDataReceived));
@@ -218,7 +218,7 @@ bool DirectoryCon::isIdle(void) const
   Proxy *proxy = Proxy::instance();
   if (proxy == 0)
   {
-    return is_ready && !client->isConnected();
+    return is_ready && client->isIdle();
   }
   else
   {
@@ -263,7 +263,7 @@ void DirectoryCon::onDnsLookupResultsReady(DnsLookup &dns)
   vector<DnsLookup*>::iterator it;
   for (it = dns_lookups.begin(); it != dns_lookups.end(); ++it)
   {
-    if (!(*it)->resultsAreReady())
+    if ((*it)->isPending())
     {
       return;
     }

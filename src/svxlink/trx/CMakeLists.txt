@@ -18,6 +18,7 @@ set(LIBSRC
   WbRxRtlSdr.cpp SigLevDet.cpp SigLevDetDdr.cpp
   SvxSwDtmfDecoder.cpp LocalRxSim.cpp SigLevDetSim.cpp
   AfskDtmfDecoder.cpp SigLevDetAfsk.cpp Modulation.cpp
+  SquelchCombine.cpp Squelch.cpp
 )
 include (CheckSymbolExists)
 CHECK_SYMBOL_EXISTS(HIDIOCGRAWINFO linux/hidraw.h HAS_HIDRAW_SUPPORT)
@@ -60,9 +61,30 @@ else (RTLSDR_FOUND)
   )
 endif (RTLSDR_FOUND)
 
-# Add targets for version files
-set(VERSION_DEPENDS)
-add_version_target(SVXLINK VERSION_DEPENDS)
+# Find GPIOD
+find_package(GPIOD 1 EXACT)
+if (GPIOD_FOUND)
+  set(LIBS ${LIBS} ${GPIOD_LIBRARIES})
+  include_directories(${GPIOD_INCLUDE_DIRS})
+  add_definitions(${GPIOD_DEFINITIONS} -DHAS_GPIOD_SUPPORT)
+  set(LIBSRC ${LIBSRC} PttGpiod.cpp SquelchGpiod.cpp)
+else (GPIOD_FOUND)
+  message(
+    "--   The gpiod library is an optional dependency.\n"
+    "--   Accessing GPIO pins using GPIOD will be unavailable.\n"
+    "--   Access through the deprecated sysfs interface will still\n"
+    "--   work though."
+  )
+endif (GPIOD_FOUND)
+
+# Find jsoncpp library
+#find_package(jsoncpp REQUIRED)
+#get_target_property(JSONCPP_INC_PATH jsoncpp_lib INTERFACE_INCLUDE_DIRECTORIES)
+#include_directories(${JSONCPP_INC_PATH})
+#set(LIBS ${LIBS} jsoncpp_lib)
+pkg_check_modules (JSONCPP REQUIRED jsoncpp)
+include_directories(${JSONCPP_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${JSONCPP_LIBRARIES})
 
 # Build only a static library
 add_library(${LIBNAME} STATIC ${LIBSRC} ${VERSION_DEPENDS})

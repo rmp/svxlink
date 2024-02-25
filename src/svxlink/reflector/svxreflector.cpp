@@ -9,7 +9,7 @@ nodes together.
 
 \verbatim
 SvxReflector - An audio reflector for connecting SvxLink Servers
-Copyright (C) 2003-2019 Tobias Blomberg / SM0SVX
+Copyright (C) 2003-2023 Tobias Blomberg / SM0SVX
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -412,7 +412,7 @@ int main(int argc, const char *argv[])
   cfg.getValue("GLOBAL", "TIMESTAMP_FORMAT", tstamp_format);
 
   cout << PROGRAM_NAME " v" SVXREFLECTOR_VERSION
-          " Copyright (C) 2003-2019 Tobias Blomberg / SM0SVX\n\n";
+          " Copyright (C) 2003-2023 Tobias Blomberg / SM0SVX\n\n";
   cout << PROGRAM_NAME " comes with ABSOLUTELY NO WARRANTY. "
           "This is free software, and you are\n";
   cout << "welcome to redistribute it in accordance with the "
@@ -697,9 +697,10 @@ static bool logfile_write_timestamp(void)
       ss << setfill('0') << setw(3) << (tv.tv_usec / 1000);
       fmt.replace(pos, frac_code.length(), ss.str());
     }
-    struct tm *tm = localtime(&tv.tv_sec);
+    struct tm tm;
     char tstr[256];
-    size_t tlen = strftime(tstr, sizeof(tstr), fmt.c_str(), tm);
+    size_t tlen = strftime(tstr, sizeof(tstr), fmt.c_str(),
+                           localtime_r(&tv.tv_sec, &tm));
     ssize_t ret = write(logfd, tstr, tlen);
     if (ret != static_cast<ssize_t>(tlen))
     {

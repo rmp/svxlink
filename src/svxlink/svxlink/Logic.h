@@ -10,7 +10,7 @@ specific logic core classes (e.g. SimplexLogic and RepeaterLogic).
 
 \verbatim
 SvxLink - A Multi Purpose Voice Services System for Ham Radio Use
-Copyright (C) 2004-2018  Tobias Blomberg / SM0SVX
+Copyright (C) 2004-2022  Tobias Blomberg / SM0SVX
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -141,31 +141,31 @@ class DtmfDigitHandler;
  ****************************************************************************/
 
 /**
-@brief	This class implements the core logic of SvxLink
+@brief	This class implements the functions in common for RF logic cores
 @author Tobias Blomberg
 @date   2004-03-23
+
+This class is used as the base class for all logic cores that implement "RF"
+behaviour. That is, logic cores which are primarily intended to operate a radio
+channel, e.g. RepeaterLogic and SimplexLogic.
 */
 class Logic : public LogicBase
 {
   public:
 
     /**
-     * @brief 	Default constuctor
+     * @brief 	Default constructor
      */
-    Logic(Async::Config& cfg, const std::string& name);
+    Logic(void);
 
     /**
-     * @brief 	Destructor
+     * @brief   Initialize the logic core
+     * @param   cfgobj      A previously initialized configuration object
+     * @param   plugin_name The name of the logic core
+     * @return  Returns \em true on success or \em false on failure
      */
-    virtual ~Logic(void);
-
-    /**
-     * @brief 	A_brief_member_function_description
-     * @param 	param1 Description_of_param1
-     * @return	Return_value_of_this_member_function
-     */
-
-    virtual bool initialize(void);
+    virtual bool initialize(Async::Config& cfgobj,
+                            const std::string& plugin_name) override;
 
     virtual void processEvent(const std::string& event, const Module *module=0);
     void setEventVariable(const std::string& name, const std::string& value);
@@ -204,9 +204,19 @@ class Logic : public LogicBase
     virtual Async::AudioSink *logicConIn(void);
     virtual Async::AudioSource *logicConOut(void);
 
+    virtual void remoteCmdReceived(LogicBase* src_logic,
+                                   const std::string& cmd);
+    virtual void remoteReceivedTgUpdated(LogicBase *src_logic, uint32_t tg);
+
+
     CmdParser *cmdParser(void) { return &cmd_parser; }
 
   protected:
+    /**
+     * @brief 	Destructor
+     */
+    virtual ~Logic(void) override;
+
     virtual void squelchOpen(bool is_open);
     virtual void allMsgsWritten(void);
     virtual void dtmfDigitDetected(char digit, int duration);
@@ -215,6 +225,7 @@ class Logic : public LogicBase
     virtual void transmitterStateChange(bool is_transmitting);
     virtual void selcallSequenceDetected(std::string sequence);
     virtual void dtmfCtrlPtyCmdReceived(const void *buf, size_t count);
+    virtual void commandPtyCmdReceived(const void *buf, size_t count);
 
     void clearPendingSamples(void);
     void enableRgrSoundTimer(bool enable);
@@ -282,6 +293,10 @@ class Logic : public LogicBase
     DtmfDigitHandler                *dtmf_digit_handler;
     Async::Pty                      *state_pty;
     Async::Pty                      *dtmf_ctrl_pty;
+    std::map<uint16_t, uint32_t>    m_ctcss_to_tg;
+    Async::Pty                      *command_pty;
+    Async::Timer                    m_ctcss_to_tg_timer;
+    float                           m_ctcss_to_tg_last_fq;
 
     void loadModules(void);
     void loadModule(const std::string& module_name);
@@ -295,14 +310,15 @@ class Logic : public LogicBase
 	void timeoutNextSecond(void);
     void everyMinute(Async::AtTimer *t);
 	void everySecond(Async::AtTimer *t);
-    void checkIfOnlineCmd(void);
     void dtmfDigitDetectedP(char digit, int duration);
     void cleanup(void);
     void updateTxCtcss(bool do_set, TxCtcssType type);
     void logicConInStreamStateChanged(bool is_active, bool is_idle);
     void audioFromModuleStreamStateChanged(bool is_active, bool is_idle);
-    void publishStateEvent(const std::string &event_name,
-                           const std::string &msg);
+    void onPublishStateEvent(const std::string &event_name,
+                             const std::string &msg);
+    void detectedTone(float fq);
+    void cfgUpdated(const std::string& section, const std::string& tag);
 
 };  /* class Logic */
 

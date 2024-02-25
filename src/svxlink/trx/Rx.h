@@ -6,7 +6,7 @@
 
 \verbatim
 SvxLink - A Multi Purpose Voice Services System for Ham Radio Use
-Copyright (C) 2003-2018 Tobias Blomberg / SM0SVX
+Copyright (C) 2003-2024 Tobias Blomberg / SM0SVX
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -152,7 +152,13 @@ class Rx : public sigc::trackable, public Async::AudioSource
      * @brief 	Destructor
      */
     virtual ~Rx(void);
-  
+
+    /**
+     * @brief   The config object
+     * @returns Returns a reference to the configuration object
+     */
+    Async::Config& cfg(void) { return m_cfg; }
+
     /**
      * @brief 	Initialize the receiver object
      * @return 	Return \em true on success, or \em false on failure
@@ -173,16 +179,27 @@ class Rx : public sigc::trackable, public Async::AudioSource
 
     /**
      * @brief 	Set the mute state for this receiver
-     * @param 	mute_state The mute state to set for this receiver
+     * @param 	new_mute_state The mute state to set for this receiver
      */
-    virtual void setMuteState(MuteState new_mute_state) = 0;
-    
+    virtual void setMuteState(MuteState new_mute_state)
+    {
+      m_mute_state = new_mute_state;
+    }
+
+    /**
+     * @brief   Get the mute state for this receiver
+     * @return  Returns the current mute state for this receiver
+     */
+    virtual MuteState muteState(void) const { return m_mute_state; }
+
     /**
      * @brief 	Check the squelch status
      * @return	Return \em true if the squelch is open or else \em false
      */
     bool squelchIsOpen(void) const { return m_sql_open; }
-    
+
+    const std::string& squelchActivityInfo(void) const { return m_sql_info; }
+
     /**
      * @brief 	Call this function to add a tone detector to the RX
      * @param 	fq The tone frequency to detect
@@ -292,23 +309,31 @@ class Rx : public sigc::trackable, public Async::AudioSource
      */
     sigc::signal<void> readyStateChanged;
 
-    
   protected:
     /**
-     * @brief 	Set the state of the squelch
-     * @param	is_open Set to \em true if the squelch is open and to
-     *	      	      	\em false if it is closed.
+     * @brief   Set the state of the squelch
+     * @param   is_open Set to \em true if the squelch is open and to
+     *                  \em false if it is closed.
+     * @param   info Information about the squelch event
+     *
+     * This function is used by a receiver implementation to set the state of
+     * the squelch, if it's opened or closed. The info argument is used to
+     * supply a short text string containing information about why the squelch
+     * opened or closed. It may be a signal level or a CTCSS frequency.
      */
-    void setSquelchState(bool is_open);
-    
-    
+    void setSquelchState(bool is_open, const std::string& info="");
+
+    void setAudioSourceHandler(Async::AudioSource* src);
+
   private:
-    std::string   m_name;
-    bool          m_verbose;
-    bool      	  m_sql_open;
-    Async::Config m_cfg;
-    Async::Timer  *m_sql_tmo_timer;
-    
+    std::string         m_name;
+    bool                m_verbose;
+    bool                m_sql_open;
+    Async::Config&      m_cfg;
+    Async::Timer*       m_sql_tmo_timer;
+    std::string         m_sql_info;
+    MuteState           m_mute_state;
+
     void sqlTimeout(Async::Timer *t);
     
 };  /* class Rx */

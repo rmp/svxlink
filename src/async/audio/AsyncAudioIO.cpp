@@ -238,38 +238,38 @@ void AudioIO::setSampleRate(int rate)
 } /* AudioIO::setSampleRate */
 
 
-void AudioIO::setBlocksize(int size)
+void AudioIO::setBlocksize(size_t size)
 {
   AudioDevice::setBlocksize(size);
 } /* AudioIO::setBlocksize */
 
 
-int AudioIO::readBlocksize(void)
+size_t AudioIO::readBlocksize(void)
 {
   return audio_dev->readBlocksize();
 } /* AudioIO::readBlocksize */
 
 
-int AudioIO::writeBlocksize(void)
+size_t AudioIO::writeBlocksize(void)
 {
   return audio_dev->writeBlocksize();
 } /* AudioIO::writeBlocksize */
 
 
-void AudioIO::setBlockCount(int count)
+void AudioIO::setBlockCount(size_t count)
 {
   AudioDevice::setBlockCount(count);
 } /* AudioIO::setBlockCount */
 
 
-void AudioIO::setChannels(int channels)
+void AudioIO::setChannels(size_t channels)
 {
   return AudioDevice::setChannels(channels);
 } /* AudioIO::setBufferCount */
 
 
 
-AudioIO::AudioIO(const string& dev_name, int channel)
+AudioIO::AudioIO(const string& dev_name, size_t channel)
   : io_mode(MODE_NONE), audio_dev(0),
     /* lead_in_pos(0), */ m_gain(1.0), sample_rate(-1),
     m_channel(channel), input_valve(0), input_fifo(0), audio_reader(0)
@@ -318,6 +318,16 @@ bool AudioIO::isFullDuplexCapable(void)
 
 bool AudioIO::open(Mode mode)
 {
+  if (m_channel >= AudioDevice::getChannels())
+  {
+    std::cerr << "*** ERROR: Audio channel out of range when opening audio "
+                 "device \"" << audio_dev->devName() << ". "
+              << "The card have " << AudioDevice::getChannels()
+              << " channel(s) configured, but (zero based) channel number "
+              << m_channel << " was requested." << std::endl;
+    return false;
+  }
+
   if (audio_dev == 0)
   {
     return false;

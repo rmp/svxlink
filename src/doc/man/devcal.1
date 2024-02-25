@@ -1,4 +1,4 @@
-.TH DEVCAL 1 "APRIL 2019" Linux "User Manuals"
+.TH DEVCAL 1 "AUGUST 2021" Linux "User Manuals"
 .
 .SH NAME
 .
@@ -54,10 +54,10 @@ neighbouring channels. The default value is 5000Hz.
 .BI "-H|--headroom=" "headroom in dB"
 The headroom is the margin to add above the maximum deviation level. Adding a
 headroom will allow SvxLink to handle levels above the maximum deviation level
-without causing immediate distorsion. The default is 6dB which mean that
+without causing immediate distortion. The default is 6dB which mean that
 SvxLink can handle twice the specified maximum deviation. If both maxdev and
 headroom are left at their default this will mean that SvxLink can handle 10kHz
-deviation without distorsion.
+deviation without distortion.
 
 Changing the headroom cause a lot of different effects so don't do that unless
 you are prepared to deal with the problems. For example, increasing the
@@ -243,10 +243,11 @@ Set this environment variable to 1 if you get an error about
 during devcal startup when using OSS audio.
 .TP
 ASYNC_AUDIO_ALSA_ZEROFILL
-Set this environment variable to 1 to make the Alsa audio code write zeros to
-the audio device when there is no audio to write available. This may be needed
-for some audio devices that take a long time to recover from an underflow
-condition.
+Set this environment variable to 0 to stop the Alsa audio code from writing
+zeros to the audio device when there is no audio to write available.
+ASYNC_AUDIO_UDP_ZEROFILL
+Set this environment variable to 1 to enable the UDP audio code to write zeros
+to the UDP connection when there is no audio to write available.
 .
 .SH AUTHOR
 .
@@ -254,7 +255,12 @@ Tobias Blomberg (SM0SVX) <sm0svx at svxlink dot org>
 .
 .SH REPORTING BUGS
 .
-SvxLink Devel <svxlink-devel at lists dot sourceforge dot net>
+Bugs should be reported using the issue tracker at
+https://github.com/sm0svx/svxlink.
+
+Questions about SvxLink should not be asked using the issue tracker. Instead
+use the group set up for this purpose at groups.io:
+https://groups.io/g/svxlink
 .
 .SH "SEE ALSO"
 .

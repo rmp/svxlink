@@ -7,16 +7,6 @@ set(MODNAME Template)
 # Project libraries to link to
 #set(LIBS ${LIBS} echolib)
 
-# The version tag name without the VER_ prefix
-set(VERNAME ${MODNAME})
-string(REGEX REPLACE \(.\)\([A-Z]\) \\1_\\2 VERNAME ${VERNAME})
-string(TOUPPER MODULE_${VERNAME} VERNAME)
-
-# Add targets for version files
-set(VERSION_DEPENDS)
-add_version_target(${VERNAME} VERSION_DEPENDS)
-add_version_target(SVXLINK VERSION_DEPENDS)
-
 # Build the plugin
 add_library(Module${MODNAME} MODULE Module${MODNAME}.cpp ${MODSRC}
   ${VERSION_DEPENDS}

@@ -145,10 +145,10 @@ class NetRx : public Rx
     
     /**
      * @brief 	Set the mute state for this receiver
-     * @param 	mute_state The mute state to set for this receiver
+     * @param 	new_mute_state The mute state to set for this receiver
      */
-    void setMuteState(MuteState new_mute_state);
-    
+    void setMuteState(MuteState new_mute_state) override;
+
     /**
      * @brief 	Call this function to add a tone detector to the RX
      * @param 	fq The tone frequency to detect
@@ -203,7 +203,6 @@ class NetRx : public Rx
 
   private:
     Async::Config     	&cfg;
-    Rx::MuteState       mute_state;
     NetTrxTcpClient  	*tcp_con;
     bool                log_disconnects_once;
     bool                log_disconnect;
@@ -215,11 +214,13 @@ class NetRx : public Rx
     Async::AudioDecoder *audio_dec;
     unsigned            fq;
     Modulation::Type    modulation;
-    
+    std::string         last_sql_activity_info;
+
     void connectionReady(bool is_ready);
     void handleMsg(NetTrxMsg::Msg *msg);
     void sendMsg(NetTrxMsg::Msg *msg);
     void allEncodedSamplesFlushed(void);
+    void publishSquelchState(void);
 
 };  /* class NetRx */
 

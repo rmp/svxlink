@@ -36,6 +36,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <cassert>
 #include <cstring>
 #include <cstdlib>
+#include <json/json.h>
 
 
 /****************************************************************************
@@ -131,7 +132,7 @@ class ToneDet
  ****************************************************************************/
 
 NetRx::NetRx(Config &cfg, const string& name)
-  : Rx(cfg, name), cfg(cfg), mute_state(Rx::MUTE_ALL), tcp_con(0),
+  : Rx(cfg, name), cfg(cfg), tcp_con(0),
     log_disconnects_once(false), log_disconnect(true),
     last_signal_strength(0.0), last_sql_rx_id(Rx::ID_UNKNOWN),
     unflushed_samples(false), sql_is_open(false), audio_dec(0), fq(0),
@@ -224,14 +225,18 @@ bool NetRx::initialize(void)
   tcp_con->isReady.connect(mem_fun(*this, &NetRx::connectionReady));
   tcp_con->msgReceived.connect(mem_fun(*this, &NetRx::handleMsg));
   tcp_con->connect();
-  
+
+  squelchOpen.connect(
+      sigc::hide(sigc::mem_fun(*this, &NetRx::publishSquelchState)));
+
   return true;
-  
+
 } /* NetRx:initialize */
 
 
 void NetRx::setMuteState(Rx::MuteState new_mute_state)
 {
+  auto mute_state = muteState();
   while (mute_state != new_mute_state)
   {
     assert((mute_state >= MUTE_NONE) && (mute_state <= MUTE_ALL));
@@ -254,7 +259,7 @@ void NetRx::setMuteState(Rx::MuteState new_mute_state)
           sql_is_open = false;
           if (!unflushed_samples)
           {
-            setSquelchState(false);
+            setSquelchState(false, "MUTED");
           }
           break;
 
@@ -267,7 +272,9 @@ void NetRx::setMuteState(Rx::MuteState new_mute_state)
       mute_state = new_mute_state;
     }
   }
-   
+
+  Rx::setMuteState(mute_state);
+
   MsgSetMuteState *msg = new MsgSetMuteState(mute_state);
   sendMsg(msg);
   
@@ -298,18 +305,19 @@ void NetRx::reset(void)
   }
   tone_detectors.clear();
   
-  mute_state = Rx::MUTE_ALL;
+  Rx::setMuteState(Rx::MUTE_ALL);
   last_signal_strength = 0;
   last_sql_rx_id = Rx::ID_UNKNOWN;
   sql_is_open = false;
   
   if (unflushed_samples)
   {
+    last_sql_activity_info = "MUTED";
     audio_dec->flushEncodedSamples();
   }
   else
   {
-    setSquelchState(false);
+    setSquelchState(false, "MUTED");
   }
 
   MsgReset *msg = new MsgReset;
@@ -358,9 +366,9 @@ void NetRx::connectionReady(bool is_ready)
     
     log_disconnect = true;
 
-    if (mute_state != Rx::MUTE_ALL)
+    if (muteState() != Rx::MUTE_ALL)
     {
-      MsgSetMuteState *msg = new MsgSetMuteState(mute_state);
+      MsgSetMuteState *msg = new MsgSetMuteState(muteState());
       sendMsg(msg);
     }
     
@@ -418,11 +426,12 @@ void NetRx::connectionReady(bool is_ready)
     sql_is_open = false;
     if (unflushed_samples)
     {
+      last_sql_activity_info = "DISCONNECTED";
       audio_dec->flushEncodedSamples();
     }
     else
     {
-      setSquelchState(false);
+      setSquelchState(false, "DISCONNECTED");
     }
   }
 } /* NetRx::connectionReady */
@@ -434,15 +443,16 @@ void NetRx::handleMsg(Msg *msg)
   {
     case MsgSquelch::TYPE:
     {
-      if (mute_state != Rx::MUTE_ALL)
+      if (muteState() != Rx::MUTE_ALL)
       {
         MsgSquelch *sql_msg = reinterpret_cast<MsgSquelch*>(msg);
         last_signal_strength = sql_msg->signalStrength();
         last_sql_rx_id = sql_msg->sqlRxId();
         sql_is_open = sql_msg->isOpen();
+        last_sql_activity_info = sql_msg->sqlActivityInfo();
         if (sql_msg->isOpen())
         {
-          setSquelchState(true);
+          setSquelchState(true, last_sql_activity_info);
         }
         else
         {
@@ -452,7 +462,7 @@ void NetRx::handleMsg(Msg *msg)
           }
           else
           {
-            setSquelchState(false);
+            setSquelchState(false, last_sql_activity_info);
           }
         }
       }
@@ -461,19 +471,20 @@ void NetRx::handleMsg(Msg *msg)
     
     case MsgSiglevUpdate::TYPE:
     {
-      if (mute_state != Rx::MUTE_ALL)
+      if (muteState() != Rx::MUTE_ALL)
       {
         MsgSiglevUpdate *sql_msg = reinterpret_cast<MsgSiglevUpdate*>(msg);
         last_signal_strength = sql_msg->signalStrength();
         last_sql_rx_id = sql_msg->sqlRxId();
         signalLevelUpdated(last_signal_strength);
+        publishSquelchState();
       }
       break;
     }
     
     case MsgDtmf::TYPE:
     {
-      if (mute_state == Rx::MUTE_NONE)
+      if (muteState() == Rx::MUTE_NONE)
       {
       	MsgDtmf *dtmf_msg = reinterpret_cast<MsgDtmf*>(msg);
       	dtmfDigitDetected(dtmf_msg->digit(), dtmf_msg->duration());
@@ -483,7 +494,7 @@ void NetRx::handleMsg(Msg *msg)
     
     case MsgTone::TYPE:
     {
-      if (mute_state == Rx::MUTE_NONE)
+      if (muteState() == Rx::MUTE_NONE)
       {
 	MsgTone *tone_msg = reinterpret_cast<MsgTone*>(msg);
 	toneDetected(tone_msg->toneFq());
@@ -493,7 +504,7 @@ void NetRx::handleMsg(Msg *msg)
     
     case MsgAudio::TYPE:
     {
-      if ((mute_state == Rx::MUTE_NONE) && sql_is_open)
+      if ((muteState() == Rx::MUTE_NONE) && sql_is_open)
       {
 	MsgAudio *audio_msg = reinterpret_cast<MsgAudio*>(msg);
 	unflushed_samples = true;
@@ -504,7 +515,7 @@ void NetRx::handleMsg(Msg *msg)
     
     case MsgSel5::TYPE:
     {
-      if (mute_state == Rx::MUTE_NONE)
+      if (muteState() == Rx::MUTE_NONE)
       {
         MsgSel5 *sel5_msg = reinterpret_cast<MsgSel5*>(msg);
         selcallSequenceDetected(sel5_msg->digits());
@@ -534,9 +545,30 @@ void NetRx::allEncodedSamplesFlushed(void)
   unflushed_samples = false;
   if (!sql_is_open)
   {
-    setSquelchState(false);
+    setSquelchState(false, last_sql_activity_info);
   }
 } /* NetRx::allEncodedSamplesFlushed */
+
+
+void NetRx::publishSquelchState(void)
+{
+  //std::cout << "### NetRx::publishSquelchState: " << std::endl;
+  float siglev = signalStrength();
+  Json::Value rx(Json::objectValue);
+  rx["name"] = name();
+  char rx_id = sqlRxId();
+  rx["id"] = std::string(&rx_id, &rx_id+1);
+  rx["sql_open"] = squelchIsOpen();
+  rx["siglev"] = static_cast<int>(siglev);
+  Json::StreamWriterBuilder builder;
+  builder["commentStyle"] = "None";
+  builder["indentation"] = ""; //The JSON document is written on a single line
+  Json::StreamWriter* writer = builder.newStreamWriter();
+  stringstream os;
+  writer->write(rx, &os);
+  delete writer;
+  publishStateEvent("Rx:sql_state", os.str());
+} /* NetRx::publishSquelchState */
 
 
 

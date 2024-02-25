@@ -10,7 +10,7 @@ server core (e.g. via a TCP/IP network).
 
 \verbatim
 RemoteTrx - A remote receiver for the SvxLink server
-Copyright (C) 2003-2019 Tobias Blomberg / SM0SVX
+Copyright (C) 2003-2023 Tobias Blomberg / SM0SVX
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -474,7 +474,7 @@ int main(int argc, char **argv)
   cfg.getValue("GLOBAL", "TIMESTAMP_FORMAT", tstamp_format);
   
   cout << PROGRAM_NAME " v" REMOTE_TRX_VERSION
-          " Copyright (C) 2003-2019 Tobias Blomberg / SM0SVX\n\n";
+          " Copyright (C) 2003-2023 Tobias Blomberg / SM0SVX\n\n";
   cout << PROGRAM_NAME " comes with ABSOLUTELY NO WARRANTY. "
           "This is free software, and you are\n";
   cout << "welcome to redistribute it in accordance with the "
@@ -518,7 +518,7 @@ int main(int argc, char **argv)
     cout << "--- Using sample rate " << rate << "Hz\n";
   }
   
-  int card_channels = 2;
+  size_t card_channels = 2;
   cfg.getValue("GLOBAL", "CARD_CHANNELS", card_channels);
   AudioIO::setChannels(card_channels);
 
@@ -837,9 +837,10 @@ static bool logfile_write_timestamp(void)
       ss << setfill('0') << setw(3) << (tv.tv_usec / 1000);
       fmt.replace(pos, frac_code.length(), ss.str());
     }
-    struct tm *tm = localtime(&tv.tv_sec);
+    struct tm tm;
     char tstr[256];
-    size_t tlen = strftime(tstr, sizeof(tstr), fmt.c_str(), tm);
+    size_t tlen = strftime(tstr, sizeof(tstr), fmt.c_str(),
+                           localtime_r(&tv.tv_sec, &tm));
     ssize_t ret = write(logfd, tstr, tlen);
     if (ret != static_cast<ssize_t>(tlen))
     {

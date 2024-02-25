@@ -1,3 +1,292 @@
+ 1.8.0 -- 25 Feb 2024
+----------------------
+
+* MetarInformation, more flexible airport announcement at the beginning of a
+  Metar
+
+* SvxReflector now support switching traffic on talk groups.
+
+* ReflectorLogic can now request switching talk groups based on the received
+  CTCSS tone frequency. It is also possible to switch to any talk group using
+  DTMF.
+
+* Now possible to use multiple CTCSS squelch tones in parallell.
+
+* SvxReflector now have a QSY functionality used to switch all active nodes on
+  a talk group to another talk group.
+
+* A logic link is now disconnected using <prefix># instead of <prefix>0#. If
+  any digits are specified after the prefix the link will be activated and the
+  digits will be given to the remote logic(s) for processing. Right now only
+  the ReflectorLogic care about these extra digits, also called the
+  subcommand.
+
+* A logic core connected to a logic link can now play announcements on all
+  other connected logics. This is used in the ReflectorLogic to announce talk
+  group selections and command feedback.
+
+* New signal level "detector": CONST
+
+* ModuleEchoLink bugfix: The LINK_IDLE_TIMEOUT did not work if the
+  remote_timeout TCL function was changed to not play any sound.
+
+* ModuleEchoLink bugfix: The LINK_IDLE_TIMEOUT did not work with short timeout
+  values where the timeout was shorter than the length of a locally received
+  transmission.
+
+* ModuleMetarInfo bugfix: Announcing twice
+
+* ModuleMetarInfo bugfix: SvxLink crashed on long LocationInfo comments
+
+* ModuleEchoLink: Now possible to silently ignore all incoming connections
+  using the DROP_ALL_INCOMING configuration variable.
+
+* The receiver configuration variables SQL_HANGTIME, SQL_EXTENDED_HANGTIME and
+  SQL_EXTENDED_HANGTIME_THRESH are now settable from within a C++ module for
+  example.
+
+* Improved GPIO up/down scripts with more error handling and support for
+  handling more cases.
+
+* New SvxReflector feature: Auto QSY. It is now possible to set a per
+  talkgroup time in the reflector after which a QSY to a random talkgroup is
+  performed. This can typically be used on call channels so that stations do
+  not dwell there for too long.
+
+* New squelch type: COMBINE. There now is a new squelch type that can combine
+  multiple other squelch types using a logical expression.
+  Implementing this new feature required rewriting quite a lot of the squelch
+  infrastructure code. Watch out for changed behavior in the squelch
+  functionality.
+
+* Bugfix: Squelch types DDR, SIM and TONE reported the "raw" signal strength
+  instead of the integrated one. This fix can change the behavior of the voter
+  and the extended hangtime feature.
+
+* Added debug mode for the CTCSS detector. Enable by setting CTCSS_DEBUG to 1
+  in a receiver configuration section.
+
+* ReflectorLogic: Now possible to adjust the UDP heartbeat interval using the
+  UDP_HEARTBEAT_INTERVAL configuration variable.
+
+* Now possible to set configuration variables from TCL using the
+  setConfigValue function. This can be used to change certain configuration of
+  SvxLink while it is running. Only some configuration variables support being
+  changed at runtime.
+
+* If a configuration variable is changed in the logic core, or in the main
+  configuration section for a module, the new TCL function config_updated will
+  be called.
+
+* New configuration variable ONLINE that can be used to decide if a logic core
+  should be active or not on program startup. This variable also support being
+  set at runtime.
+
+* Use the new configuration variable COMMAND_PTY to set up a PTY that can be
+  used to send commands to a logic core.
+
+* Filter out CTCSS band for voice output. Interference on CTCSS transmission
+  could be caused by low frequency content in audio clips or incoming audio on
+  Echolink for example.
+
+* Ignore prioritized talkgroups qfter QSY if there have been local node
+  activity prior to the QSY. This fix a problem where a node would switch to a
+  prioritized talkgroup after a QSY to a lower priority talkgroup, if there
+  have been no local activity after the QSY. Priority will be honored again
+  after the node have switched to TG#0.
+
+* Make the audio limiter threshold in the receiver configurable using the
+  LIMITER_THRESH configuration variable in a receiver configuration section.
+
+* Add an audio limiter to the transmitted audio path. The threshold may be set
+  using the LIMITER_THRESH configuration variable in a TX configuration
+  section.
+
+* Bugfix: When AUTOACTIVATE_ON_SQL is used in a logic link definition it is
+  supposed to default to a timeout of 30 seconds if TIMEOUT is not set. That
+  did not work though.
+
+* ReflectorLogic: Use the QSY_PENDING_TIMEOUT configuration variable to enable
+  following a just ignored QSY request on squelch open.
+
+* By default, when activating a module in a logic core, all logic linking
+  audio will be muted. This behavior can be changed by using the
+  MUTE_LOGIC_LINKING configuration variable in the module configuration.
+
+* More informative squelch open/close printouts implemented. The information
+  that is printed within the parenthesis after the squelch open/close message
+  is now specific for each squelch type so that meaningful information can be
+  printed for that squelch type. For example the CTCSS tone frequency and SNR
+  is printed for CTCSS squelch. The value printed for SIGLEV squelch is now
+  the actual value that is used by the squelch. Previously there was no
+  connection between the value used by the squelch and the printed signal
+  level.
+
+* Fix receiver muting bug introduced with the AUDIO_DEV_KEEP_OPEN feature.
+
+* Bugfix: SQL_START_DELAY was not honored in all cases.
+
+* Rework squelch core code. The core squelch handling code was not fully
+  correct causing problems in some configurations.
+
+* New voter configuration variable VERBOSE which cause the voter to print the
+  squelch state events of the satellite receivers. This can be used while fine
+  tuning voter timing for example.
+
+* Rename configuration variables to make it more clear that they are for
+  squelch configuration. An "SQL_" prefix have been added to the following
+  configuration variables: SIGLEV_RX_NAME, SIGLEV_OPEN_THRESH,
+  SIGLEV_CLOSE_THRESH.
+
+* Bugfix: Do not emit tone detected events from muted receivers.
+
+* The voter COMMAND_PTY now accept a new command MUTE that will keep the
+  receiver active but block all content.
+
+* Bugfix in ModuleMetarInfo: Gusts were not announced correctly in combination
+  with mps
+
+* Bugfix in ReflectorLogic: The AUTOACTIVATE_ON_SQL logic linking
+  functionality did not work for the ReflectorLogic.
+
+* The AUTOACTIVATE_ON_SQL logic linking configuration variable has been
+  renamed to ACTIVATE_ON_ACTIVITY.
+
+* Bugfix in reflector authentication.
+
+* Now possible to set the Echolink module drop/reject/accept configuration
+  variables at runtime. This can for example be used from TCL, using the
+  setConfigValue function, to change behavior at runtime. See example in
+  ReflectorLogic.tcl.
+
+* Bugfix in ReflectorLogic: It was possible to activate a temporary TG monitor
+  on a TG that was configured to be permanent. When the temporary monitor
+  timed out the TG was removed from the monitoring list completely.
+
+* Add support for PTT and squelch via the gpiod library. Accessing GPIO pins
+  via the sysfs interface is deprecated.
+  When PTT_TYPE is set to GPIOD there are two new configuration variables
+  available to set GPIOD up, PTT_GPIOD_CHIP and PTT_GPIOD_LINE.
+  When SQL_DET is set to GPIOD there are two new configuration variables
+  available to set GPIOD up, SQL_GPIOD_CHIP, SQL_GPIOD_LINE. If SvxLink is
+  built with libgpiod >= 1.5 SQL_GPIOD_BIAS will also be available to set
+  PULLUP/PULLDOWN for a GPIO input (squelch) pin.
+
+* New CTCSS tone detector, mode 4, added. This detector is faster and more
+  selective. It probably also is more resilient to interference. Have a look
+  at the svxlink.conf (5) manual page under CTCSS_MODE for more information.
+
+* Tone detectors for 1750 Hz tone burst, CTCSS repeater activation,
+  CTCSS_TO_TG etc now use frequency estimation in addition to energy detection
+  for better selectivity.
+
+* Improved squelch state logging with more details about the detection.
+
+* New CTCSS configuration variable CTCSS_SNR_OFFSETS (note the plural S) which
+  replace the old variable with a similar name. The new variable take a comma
+  separated list of frequency:offset pairs to support the use of multiple
+  CTCSS tone frequencies. The siglevdetcal utility has also been modified to
+  output the new variable format. If you are using just one CTCSS frequency
+  with a previously calibrated offet value you can keep using that. The older
+  configuration variable will not be removed and it still work in the same
+  way.
+
+* ReflectorLogic: New config variable VERBOSE that choose if printouts from
+  the reflector logic should be verbose or not. At the moment the only
+  difference is that reflector join/leave messages will be suppressed if
+  VERBOSE=0.
+
+* The TCL event handler functions remote_cmd_received and
+  remote_received_tg_updated can now be used in a logic core to act on
+  commands and talkgroup activations from another logic core.
+
+* ReflectorLogic: Client side redundancy added by using DNS SRV records or a
+  locally specified list of hosts. Renamed configuration variables:
+  HOST -> HOSTS, PORT -> HOST_PORT. New configuration variables:
+  DNS_DOMAIN, HOST_PRIO, HOST_PRIO_INC, HOST_WEIGHT.
+
+* Logic cores (SimplexLogic, RepeaterLogic etc) are now implemented as plugins
+  which mean they are dynamically loaded at runtime if needed. There are
+  multiple benefits with that:
+  - Easier to accept contributed logic cores into the main source tree since
+    no core code needs changing.
+  - As long as the plugin is not loaded it can cause no harm if it contain a
+    bug.
+  - Third-party logic cores can be packaged separately. Package maintainers
+    that build contributed code are urged to put such artifacts in its own
+    package with a name like svxlink-contrib-examplelogic.
+  See man svxlink.conf and the LOGIC_CORE_PATH configuration variable for info
+  on how SvxLink find the plugins.
+
+* Bugfix in SvxReflector: After 65536 client connections the warning "Incoming
+  UDP datagram from XX.XX.XX.XX:YYYYY has invalid client id ZZZZZ" was logged
+  for all new client connections.
+
+* New contribution from DL1HRC: SipLogic. The build is enabled by using the
+  -DWITH_CONTRIB_SIP_LOGIC=ON CMake command line option.
+
+* The CTCSS squelch detector is now used for both OPEN_ON_CTCSS and
+  CTCSS_TO_TG. That have multiple benefits. CPU usage is lower since only one
+  detector is used instead of three in parallell. The quality of the CTCSS
+  detector is better so shorter detection times may be used. On the downside,
+  there must be a CTCSS detector configured at every frequency that is
+  specified in either CTCSS_TO_TG or OPEN_ON_CTCSS.
+
+* Changed syntax for OPEN_ON_CTCSS. Only detection time is specified, no
+  frequency. All frequencies configured in the receiver configuration will be
+  used.
+
+* New configuration variable CTCSS_TO_TG_DELAY.
+
+* CTCSS_MODE=4 now is the default.
+
+* Bugfix: CTCSS transmission did not work correctly when AUDIO_DEV_KEEP_OPEN=1
+  was specified. The tone did not turn off once it had been turned on.
+
+* The TX configuration variable CTCSS_LEVEL is now set in dBFS instead of
+  percent.
+
+* New configuration variable CTCSS_EMIT_TONE_DETECTED. May need to be set to 0
+  in some advanced squelch configurations.
+
+* Now possible to set the jitter buffer delay on TX audio in RemoteTrx. This
+  may be useful if experiencing choppy TX audio.
+
+* Bugfix: Receiver voter muting had a couple of bugs that showed up when using
+  the voter command PTY to disable/mute/enable receivers. It's unknown if
+  these bugs have also caused any other problems.
+
+* 1750 Hz tone burst detector accuracy requirement increased to +/- 25 Hz.
+
+* Bugfix: When using "open repeater on squelch close", the squelch rx id was
+  not set up before the TCL event handler send_rgr_sound was called directly
+  after repeater open. This caused playing the wrong roger sound.
+
+* Bugfix in ModuleEchoLink: The INCORRECT PASSWORD message was ignored.
+
+* New global TCL function "getVar" that makes it easier to get the value of a
+  variable that may be non-existent. If the variable does not exist a default
+  value is returned instead.
+
+* New configuration variable LOCAL_RGR_SOUND in ModuleEchoLink that is used to
+  enable/disable the playing of a roger beep locally when the remote station
+  stops talking.
+
+* Add support for using the CM108B chip for squelch and PTT.
+  Contributed by DL1HRC.
+
+* New configuration variable TG_SELECT_INHIBIT_TIMEOUT that is used to
+  separately control the TG select inhibit feature.
+
+* Bugfix for the 1750_MUTING configuration variable. Setting it to 0 did not
+  disable the feature. It had to be commented out.
+
+* It's now possible to use LADSPA plugins to shape received audio. Fore more
+  information have a look at the documentation for the LADSPA_PLUGINS
+  configuration variable.
+
+
+
  1.7.0-1 -- 10 Mar 2021
 ------------------------
 
@@ -7,6 +296,7 @@
 
  1.7.0 -- 01 Sep 2019
 ----------------------
+
 * MetarInfo now supports secure http (https) since aviationweather.gov has 
   switched to https only. Read documentation and/or README in directory 
   modules/metarinfo for changes.
@@ -1274,7 +1564,7 @@
   the input volume. It is enabled by setting the PEAK_METER variable in
   the receiver configuration section. Start SvxLink and open the squelch on
   the receiver so that only noise is available on the input. Adjust the input
-  volume until you see messages printed about distorsion. Then lower the
+  volume until you see messages printed about distortion. Then lower the
   volume until there are no more messages.
 
 * Now using libsigc++ version 1.2 instead of the old and outdated 1.0.

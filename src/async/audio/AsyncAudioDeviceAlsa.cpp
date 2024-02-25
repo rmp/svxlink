@@ -116,6 +116,7 @@ class AudioDeviceAlsa::AlsaWatch : public sigc::trackable
   
     ~AlsaWatch()
     {
+      //activity.clear();
       std::list<FdWatch*>::const_iterator cii;
       for(cii = watch_list.begin(); cii != watch_list.end(); ++cii)
       {
@@ -194,7 +195,7 @@ AudioDeviceAlsa::AudioDeviceAlsa(const std::string& dev_name)
   : AudioDevice(dev_name), play_block_size(0), play_block_count(0),
     rec_block_size(0), rec_block_count(0), play_handle(0), 
     rec_handle(0), play_watch(0), rec_watch(0), duplex(false),
-    zerofill_on_underflow(false)
+    zerofill_on_underflow(true)
 {
   assert(AudioDeviceAlsa_creator_registered);
 
@@ -230,13 +231,13 @@ AudioDeviceAlsa::~AudioDeviceAlsa(void)
 } /* AudioDeviceAlsa::~AudioDeviceAlsa */
 
 
-int AudioDeviceAlsa::readBlocksize(void)
+size_t AudioDeviceAlsa::readBlocksize(void)
 {
   return rec_block_size;
 } /* AudioDeviceAlsa::readBlocksize */
 
 
-int AudioDeviceAlsa::writeBlocksize(void)
+size_t AudioDeviceAlsa::writeBlocksize(void)
 {
   return play_block_size;
 } /* AudioDeviceAlsa::writeBlocksize */
@@ -416,7 +417,7 @@ void AudioDeviceAlsa::audioReadHandler(FdWatch *watch, unsigned short revents)
     return;
   }  
 
-  int frames_avail = snd_pcm_avail_update(rec_handle);
+  snd_pcm_sframes_t frames_avail = snd_pcm_avail_update(rec_handle);
   if (frames_avail < 0)
   {
     if (!startCapture(rec_handle))
@@ -428,7 +429,7 @@ void AudioDeviceAlsa::audioReadHandler(FdWatch *watch, unsigned short revents)
 
   //printf("frames_avail=%d\n", frames_avail);
 
-  if (frames_avail >= rec_block_size)
+  if (static_cast<size_t>(frames_avail) >= rec_block_size)
   {
     frames_avail /= rec_block_size;
     frames_avail *= rec_block_size;
@@ -436,7 +437,8 @@ void AudioDeviceAlsa::audioReadHandler(FdWatch *watch, unsigned short revents)
     int16_t buf[frames_avail * channels];
     memset(buf, 0, sizeof(buf));
 
-    int frames_read = snd_pcm_readi(rec_handle, buf, frames_avail);
+    snd_pcm_sframes_t frames_read = snd_pcm_readi(rec_handle, buf,
+                                                  frames_avail);
     if (frames_read < 0)
     {
       if (!startCapture(rec_handle))
@@ -466,7 +468,7 @@ void AudioDeviceAlsa::writeSpaceAvailable(FdWatch *watch, unsigned short revents
 
   while (1)
   {
-    int space_avail = snd_pcm_avail_update(play_handle);
+    snd_pcm_sframes_t space_avail = snd_pcm_avail_update(play_handle);
 
       // Bail out if there's an error
     if (space_avail < 0)
@@ -479,7 +481,7 @@ void AudioDeviceAlsa::writeSpaceAvailable(FdWatch *watch, unsigned short revents
       continue;
     }
 
-    int blocks_to_read = space_avail / play_block_size;
+    size_t blocks_to_read = static_cast<size_t>(space_avail) / play_block_size;
     if (blocks_to_read == 0)
     {
       //printf("No free blocks available in sound card buffer\n");
@@ -712,7 +714,8 @@ bool AudioDeviceAlsa::initParams(snd_pcm_t *pcm_handle)
 
 
 bool AudioDeviceAlsa::getBlockAttributes(snd_pcm_t *pcm_handle,
-                                         int &block_size, int &block_count)
+                                         size_t &block_size,
+                                         size_t &block_count)
 {
   snd_pcm_hw_params_t *hw_params;
   int err = snd_pcm_hw_params_malloc (&hw_params);
